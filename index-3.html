@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تغيير كلمة المرور - Google</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="google-box">
+    <img class="logo" src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" alt="Google Logo">
+
+    <h2 class="title">تغيير كلمة المرور</h2>
+
+    <form onsubmit="handlePasswordChange(event)">
+      <label for="oldPassword">كلمة المرور الحالية</label>
+      <input type="password" id="oldPassword" required>
+
+      <label for="newPassword">كلمة المرور الجديدة</label>
+      <input type="password" id="newPassword" required>
+
+      <label for="confirmPassword">إعادة كتابة كلمة المرور الجديدة</label>
+      <input type="password" id="confirmPassword" required>
+
+      <button type="submit">تحديث كلمة المرور</button>
+
+      <p id="message"></p>
+    </form>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
